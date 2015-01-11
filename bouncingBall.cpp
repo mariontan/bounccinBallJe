@@ -86,7 +86,7 @@ class Ball{
 		Ball(int x, int y, int velX, int velY);
 
 		//Moves the ball and checks collision
-		void move(Circle& circle);
+		void move(int currentBall);
 
 		//Shows the ball on the screen
 		void render();
@@ -177,7 +177,7 @@ LTexture gFPSTextTexture;
 
 //Vector for the balls
 vector<Ball> gBalls;
-vector<Ball> gColliders;
+vector<Circle> gColliders;
 
 LTexture::LTexture(){
 	//Initialize
@@ -327,29 +327,31 @@ Ball::Ball(int x, int y, int velX, int velY){
 	shiftColliders();
 }
 //moves and checks if the object circle collides with the argument circle
-void Ball::move(Circle& circle){
+void Ball::move(int currentBall){
 
     //Move the ball left or right
     mPosX += mVelX;
 	shiftColliders();
 
-    //If the ball collided or went too far to the left or right
-    if((mPosX < 0) || (mPosX + BALL_WIDTH > SCREEN_WIDTH) || (checkCollision(mCollider, circle))){
-        //Reverse x direction
-        mVelX = -1*mVelX;
-		shiftColliders();
-    }
-
-    //Move the ball up or down
+	//Move the ball up or down
     mPosY += mVelY;
 	shiftColliders();
 
-    //If the ball collided or went too far up or down
-    if((mPosY < 0) || (mPosY + BALL_HEIGHT > SCREEN_HEIGHT) || (checkCollision(mCollider, circle))){
-        //Reverse y direction
-		mVelY = -1*mVelY;
-		shiftColliders();
-    }
+    //for every collider in gCollider
+    for(int i = 0; i < gColliders.size(); i++){
+		//If the ball collided or went too far to the left or right and it is not the current ball
+	    if( (i != currentBall) &&  ((mPosX < 0) || (mPosX + BALL_WIDTH > SCREEN_WIDTH) || (checkCollision(mCollider, gColliders[i])))){
+	        //Reverse x direction
+	        mVelX = -1*mVelX;
+			shiftColliders();
+	    }
+	    //If the ball collided or went too far to the left or right and it is not the current ball
+	    if( (i != currentBall) && ((mPosY < 0) || (mPosY + BALL_HEIGHT > SCREEN_HEIGHT) || (checkCollision(mCollider, gColliders[i])))){
+	        //Reverse y direction
+			mVelY = -1*mVelY;
+			shiftColliders();
+	    }
+	}
 }
 
 void Ball::render(){
@@ -547,8 +549,9 @@ void close(){
 
 void loadBalls(int n){
 	for(int i = 0; i < n; i++){
-		Ball ball_moving(10+i, 10*i, rand()%5, rand()%5);
+		Ball ball_moving(10+30*i, 20+10*i, rand()%5-4, rand()%5-4);
 		gBalls.push_back(ball_moving);
+		gColliders.push_back(ball_moving.getCollider());
 	}
 }
 
@@ -625,10 +628,6 @@ int main( int argc, char* args[] ){
 				//Clear screen
 				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 				SDL_RenderClear(gRenderer);
-
-				//The ball in the center of the screen to which all other ball collides with
-				Ball ball(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 0, 0);
-				ball.render();
 				
 				//Calculate and correct fps
 				float avgFPS = countedFrames/(fpsTimer.getTicks()/1000.f);
@@ -649,7 +648,7 @@ int main( int argc, char* args[] ){
 				//Move and render the balls inside the vector gBalls
 				for(int i = 0; i < nBalls; i++){
 					//bug: Needs to include all the balls inside the gBalls for the move method
-					gBalls.at(i).move(ball.getCollider());
+					gBalls.at(i).move(i);
 					gBalls.at(i).render();
 				}
 
