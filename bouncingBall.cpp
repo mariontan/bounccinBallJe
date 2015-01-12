@@ -18,8 +18,8 @@ and may not be redistributed without written permission.*/
 
 using namespace std; 
 //Screen dimension constants
-const int SCREEN_WIDTH = 250;
-const int SCREEN_HEIGHT = 200;
+const int SCREEN_WIDTH = 500;
+const int SCREEN_HEIGHT = 500;
 
 //A circle stucture
 struct Circle{
@@ -351,6 +351,7 @@ void Ball::move(int currentBall){
 			mVelY = -1*mVelY;
 			shiftColliders();
 	    }
+	    gColliders.at(currentBall) = gBalls[currentBall].getCollider();
 	}
 }
 
@@ -549,7 +550,7 @@ void close(){
 
 void loadBalls(int n){
 	for(int i = 0; i < n; i++){
-		Ball ball_moving(10+30*i, 20+10*i, rand()%5-4, rand()%5-4);
+		Ball ball_moving(rand()%(SCREEN_WIDTH-Ball::BALL_WIDTH), rand()%(SCREEN_HEIGHT-Ball::BALL_HEIGHT), rand()%5-4, rand()%5-3);
 		gBalls.push_back(ball_moving);
 		gColliders.push_back(ball_moving.getCollider());
 	}
@@ -593,6 +594,9 @@ int main( int argc, char* args[] ){
 			//Event handler
 			SDL_Event e;
 
+			//Set text color as black
+			SDL_Color textColor = {0, 0, 0, 255};
+
 			//In memory text stream
 			stringstream timeText;
 
@@ -607,10 +611,7 @@ int main( int argc, char* args[] ){
 			fpsTimer.start();
 
 			//Count of balls in screen
-			int nBalls = 4;
-
-			//Set text color as black
-			SDL_Color textColor = {0, 0, 0, 255};
+			int nBalls = 10;
 
 			//loadBalls in vector gBalls
 			loadBalls(nBalls);
@@ -625,6 +626,7 @@ int main( int argc, char* args[] ){
 					}
 				}
 
+				
 				//Clear screen
 				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 				SDL_RenderClear(gRenderer);
