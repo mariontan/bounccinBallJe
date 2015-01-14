@@ -16,7 +16,7 @@ and may not be redistributed without written permission.*/
 
 #define PI 3.14159265
 
-using namespace std; 
+using namespace std;
 //Screen dimension constants
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
@@ -38,7 +38,7 @@ class LTexture{
 
 		//Loads image at specified path
 		bool loadFromFile( std::string path );
-		
+
 		#ifdef _SDL_TTF_H
 		//Creates image from font string
 		bool loadFromRenderedText(std::string textureText, SDL_Color textColor);
@@ -55,7 +55,7 @@ class LTexture{
 
 		//Set alpha modulation
 		void setAlpha(Uint8 alpha);
-		
+
 		//Renders texture at given point
 		void render(int x, int y, SDL_Rect* clip = NULL, double angle = 0.0, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
 
@@ -100,7 +100,7 @@ class Ball{
 
 		//The velocity of the ball
 		int mVelX, mVelY;
-		
+
 		//Ball's collision circle
 		Circle mCollider;
 
@@ -257,7 +257,7 @@ bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor
 		printf( "Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError() );
 	}
 
-	
+
 	//Return success
 	return mTexture != NULL;
 }
@@ -282,7 +282,7 @@ void LTexture::setBlendMode(SDL_BlendMode blending){
 	//Set blending function
 	SDL_SetTextureBlendMode( mTexture, blending );
 }
-		
+
 void LTexture::setAlpha(Uint8 alpha){
 	//Modulate texture alpha
 	SDL_SetTextureAlphaMod( mTexture, alpha );
@@ -340,17 +340,24 @@ void Ball::move(int currentBall){
     //for every collider in gCollider
     for(int i = 0; i < gColliders.size(); i++){
 		//If the ball collided or went too far to the left or right and it is not the current ball
-	    if( (i != currentBall) &&  ((mPosX < 0) || (mPosX + BALL_WIDTH > SCREEN_WIDTH) || (checkCollision(mCollider, gColliders[i])))){
+	    if( (i != currentBall) &&  ((mPosX < 0) || (mPosX + BALL_WIDTH > SCREEN_WIDTH))){
 	        //Reverse x direction
 	        mVelX = -1*mVelX;
 			shiftColliders();
 	    }
 	    //If the ball collided or went too far to the left or right and it is not the current ball
-	    if( (i != currentBall) && ((mPosY < 0) || (mPosY + BALL_HEIGHT > SCREEN_HEIGHT) || (checkCollision(mCollider, gColliders[i])))){
+	    if( (i != currentBall) && ((mPosY < 0) || (mPosY + BALL_HEIGHT > SCREEN_HEIGHT) /*|| (checkCollision(mCollider, gColliders[i]))*/)){
 	        //Reverse y direction
 			mVelY = -1*mVelY;
 			shiftColliders();
 	    }
+	    if((i != currentBall)&&(checkCollision(mCollider, gColliders[i]))){
+            mVelX = -1*mVelX;
+            mVelY = -1*mVelY;
+			shiftColliders();
+	    }
+
+
 	    gColliders.at(currentBall) = gBalls[currentBall].getCollider();
 	}
 }
@@ -537,7 +544,7 @@ void close(){
 	TTF_CloseFont( gFont );
 	gFont = NULL;
 
-	//Destroy window	
+	//Destroy window
 	SDL_DestroyRenderer(gRenderer);
 	SDL_DestroyWindow(gWindow);
 	gWindow = NULL;
@@ -587,7 +594,7 @@ int main( int argc, char* args[] ){
 		if(!loadMedia()){
 			printf( "Failed to load media!\n" );
 		}
-		else{	
+		else{
 			//Main loop flag
 			bool quit = false;
 
@@ -626,11 +633,11 @@ int main( int argc, char* args[] ){
 					}
 				}
 
-				
+
 				//Clear screen
 				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 				SDL_RenderClear(gRenderer);
-				
+
 				//Calculate and correct fps
 				float avgFPS = countedFrames/(fpsTimer.getTicks()/1000.f);
 				if(avgFPS > 2000000){
@@ -639,7 +646,7 @@ int main( int argc, char* args[] ){
 
 				//Set text to be rendered
 				timeText.str("");
-				timeText << "Average Frames Per Second " << avgFPS; 
+				timeText << "Average Frames Per Second " << avgFPS;
 
 				//Render text
 				if(!gFPSTextTexture.loadFromRenderedText(timeText.str().c_str(), textColor)){
