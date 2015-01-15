@@ -164,7 +164,7 @@ bool checkCollision(Circle& a, Circle& b);
 //Calculates distance squared between two points
 double distanceSquared(int x1, int y1, int x2, int y2);
 
-void calculateNewVel(Ball curBall, Ball otherBall);
+void calculateNewVel(Ball& curBall, Ball& otherBall);
 
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
@@ -369,7 +369,7 @@ void Ball::move(int currentBall){
 	}
 }
 
-void calculateNewVel(Ball curBall, Ball otherBall){
+void calculateNewVel(Ball& curBall, Ball& otherBall){
     int mass = 1;
     //velocity of current Ball
     int oldVelXC = curBall.mVelX;
