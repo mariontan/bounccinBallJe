@@ -1,4 +1,4 @@
-//g++ bouncingBall.cpp -lSDL2 -lSDL2_image -lSDL2_ttf -o Bouncing Ball
+//g++ bouncingBall.cpp -lSDL2 -lSDL2_image -lSDL2_ttf -o BouncingBall
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -10,7 +10,7 @@
 
 #define PI 3.14159265
 
-using namespace std; 
+using namespace std;
 //Screen dimension constants
 const int SCREEN_WIDTH = 500;
 const int SCREEN_HEIGHT = 500;
@@ -32,7 +32,7 @@ class LTexture{
 
 		//Loads image at specified path
 		bool loadFromFile( std::string path );
-		
+
 		#ifdef _SDL_TTF_H
 		//Creates image from font string
 		bool loadFromRenderedText(std::string textureText, SDL_Color textColor);
@@ -49,7 +49,7 @@ class LTexture{
 
 		//Set alpha modulation
 		void setAlpha(Uint8 alpha);
-		
+
 		//Renders texture at given point
 		void render(int x, int y, SDL_Rect* clip = NULL, double angle = 0.0, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
 
@@ -85,16 +85,17 @@ class Ball{
 		//Shows the ball on the screen
 		void render();
 
+
 		//Gets collision circle
 		Circle& getCollider();
+
+		//The velocity of the ball
+		double mVelX, mVelY;
 
     private:
 		//The X and Y offsets of the ball
 		int mPosX, mPosY;
 
-		//The velocity of the ball
-		int mVelX, mVelY;
-		
 		//Ball's collision circle
 		Circle mCollider;
 
@@ -145,6 +146,8 @@ bool checkCollision(Circle& a, Circle& b);
 //Calculates distance squared between two points
 double distance(int x1, int y1, int x2, int y2);
 
+void calculateNewVel(Ball& currentBall, Ball& otherBall);
+
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
 
@@ -163,7 +166,7 @@ TTF_Font* gFont = NULL;
 //Scene textures
 LTexture gFPSTextTexture;
 
-//Vectors for the balls and their colliders
+//Vector for the balls
 vector<Ball> gBalls;
 vector<Circle> gColliders;
 
@@ -177,7 +180,7 @@ int main( int argc, char* args[] ){
 		if(!loadMedia()){
 			printf( "Failed to load media!\n" );
 		}
-		else{	
+		else{
 			//Main loop flag
 			bool quit = false;
 
@@ -201,7 +204,7 @@ int main( int argc, char* args[] ){
 			fpsTimer.start();
 
 			//Count of balls in screen
-			int nBalls = 30;
+			int nBalls = 10;
 
 			//loadBalls in vector gBalls
 			loadBalls(nBalls);
@@ -219,7 +222,7 @@ int main( int argc, char* args[] ){
 				//Clear screen
 				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 				SDL_RenderClear(gRenderer);
-				
+
 				//Calculate and correct fps
 				float avgFPS = countedFrames/(fpsTimer.getTicks()/1000.f);
 				if(avgFPS > 2000000){
@@ -228,7 +231,7 @@ int main( int argc, char* args[] ){
 
 				//Set text to be rendered
 				timeText.str("");
-				timeText << "Average Frames Per Second " << avgFPS; 
+				timeText << "Average Frames Per Second " << avgFPS;
 
 				//Render text
 				if(!gFPSTextTexture.loadFromRenderedText(timeText.str().c_str(), textColor)){
@@ -238,6 +241,7 @@ int main( int argc, char* args[] ){
 
 				//Move and render the balls inside the vector gBalls
 				for(int i = 0; i < nBalls; i++){
+					//bug: Needs to include all the balls inside the gBalls for the move method
 					gBalls.at(i).move(i);
 					gBalls.at(i).render();
 				}
@@ -249,7 +253,6 @@ int main( int argc, char* args[] ){
 			}
 		}
 	}
-
 	//Free resources and close SDL
 	close();
 	return 0;
@@ -276,12 +279,10 @@ bool LTexture::loadFromFile(std::string path){
 
 	//Load image at specified path
 	SDL_Surface* loadedSurface = IMG_Load( path.c_str() );
-	if( loadedSurface == NULL )
-	{
+	if( loadedSurface == NULL ){
 		printf( "Unable to load image %s! SDL_image Error: %s\n", path.c_str(), IMG_GetError() );
 	}
-	else
-	{
+	else{
 		//Color key image
 		SDL_SetColorKey( loadedSurface, SDL_TRUE, SDL_MapRGB( loadedSurface->format, 0, 0xFF, 0xFF ) );
 
@@ -331,7 +332,7 @@ bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor
 		printf( "Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError() );
 	}
 
-	
+
 	//Return success
 	return mTexture != NULL;
 }
@@ -356,7 +357,7 @@ void LTexture::setBlendMode(SDL_BlendMode blending){
 	//Set blending function
 	SDL_SetTextureBlendMode( mTexture, blending );
 }
-		
+
 void LTexture::setAlpha(Uint8 alpha){
 	//Modulate texture alpha
 	SDL_SetTextureAlphaMod( mTexture, alpha );
@@ -367,7 +368,8 @@ void LTexture::render(int x, int y, SDL_Rect* clip, double angle, SDL_Point* cen
 	SDL_Rect renderQuad = { x, y, mWidth, mHeight };
 
 	//Set clip rendering dimensions
-	if( clip != NULL ){
+	if( clip != NULL )
+	{
 		renderQuad.w = clip->w;
 		renderQuad.h = clip->h;
 	}
@@ -385,14 +387,12 @@ int LTexture::getHeight(){
 }
 
 Ball::Ball(int x, int y, int velX, int velY){
-    
+    //Initialize the offsets
+    mPosX = x;
+    mPosY = y;
 
 	//Set collision circle size
 	mCollider.r = gBallTexture.getWidth() / 2;
-
-	//Initialize the offsets
-    mPosX = x;
-    mPosY = y;
 
     //Initialize the velocity
     mVelX = velX;
@@ -401,8 +401,7 @@ Ball::Ball(int x, int y, int velX, int velY){
 	//Move collider relative to the circle
 	shiftColliders();
 }
-
-//moves and checks if the object circle collides with the current ball being rendered
+//moves and checks if the object circle collides with the argument circle
 void Ball::move(int currentBall){
 
     //Move the ball left or right
@@ -416,21 +415,28 @@ void Ball::move(int currentBall){
     //for every collider in gCollider
     for(int i = 0; i < gColliders.size(); i++){
 		//If the ball collided or went too far to the left or right and it is not the current ball
-	    if( (i != currentBall) &&  ((mPosX-mCollider.r < 0) || (mPosX + mCollider.r > SCREEN_WIDTH) || (checkCollision(mCollider, gColliders[i])))){
+	    if( (i != currentBall)&&( (mPosX-mCollider.r < 0) || (mPosX + mCollider.r > SCREEN_WIDTH))){
 	        //Reverse x direction
 	        mVelX = -1*mVelX;
 			shiftColliders();
 	    }
-	    //If the ball collided or went too far to the left or right and it is not the current ball
-	    if( (i != currentBall) && ((mPosY-mCollider.r < 0) || (mPosY + mCollider.r > SCREEN_HEIGHT) || (checkCollision(mCollider, gColliders[i])))){
+	    //If the ball collided or went too far to the up and down and it is not the current ball
+	    if( (i != currentBall)&& ((mPosY-mCollider.r < 0) || (mPosY + mCollider.r > SCREEN_HEIGHT))){
 	        //Reverse y direction
 			mVelY = -1*mVelY;
 			shiftColliders();
+	    }
+	    if((i != currentBall) && (checkCollision(mCollider, gColliders[i]))){
+            //calculate new velocities
+            calculateNewVel(gBalls[currentBall],gBalls[i]);
+			shiftColliders();
+			
 	    }
 	    gColliders.at(currentBall) = gBalls[currentBall].getCollider();
 	}
 }
 
+//make a return velocity function for
 void Ball::render(){
     //Show the ball
 	gBallTexture.render(mPosX-mCollider.r, mPosY-mCollider.r);
@@ -495,7 +501,6 @@ Uint32 LTimer::getTicks(){
             time = SDL_GetTicks() - mStartTicks;
         }
     }
-
     return time;
 }
 
@@ -568,9 +573,12 @@ bool loadMedia(){
 	return success;
 }
 
+//bug: Improve on the flexibility of this
 void loadBalls(int n){
+	//Table-like layout of initial positions of the balls
 	int columnCount = 1;
 	int rowCount = 1;
+	//Offset for the left and right 'walls'
 	int offset = SCREEN_WIDTH/10;
 	int posY = Ball::BALL_WIDTH;
 	int posX = Ball::BALL_HEIGHT;
@@ -580,17 +588,17 @@ void loadBalls(int n){
 		columnCount++;
 		if(posX > (SCREEN_WIDTH - offset)){
 			rowCount++;
-			posY = rowCount*(Ball::BALL_HEIGHT+offset);
+			posY = rowCount*(Ball::BALL_HEIGHT + offset);
 			columnCount = 1;
 		}
-		Ball ball(posX, posY, 1 + rand()%5-4, 1 + rand()%5-3);
+		Ball ball(posX, posY, 4 + rand()%5-4, 4 + rand()%5-3);
 		gBalls.push_back(ball);
 		gColliders.push_back(ball.getCollider());		
 	}
 }
 
 bool checkCollision(Circle& a, Circle& b){
-	//Calculate total radii/diameter
+	//Calculate total radius squared
     int totalRadii = a.r + b.r;
 
     //If the ditsance between the centers of the circles is less than the sum of their radii
@@ -598,7 +606,6 @@ bool checkCollision(Circle& a, Circle& b){
         //The circles have collided
         return true;
     }
-    //If not
     return false;
 }
 
@@ -606,6 +613,34 @@ double distance(int x1, int y1, int x2, int y2){
 	int deltaX = x2 - x1;
 	int deltaY = y2 - y1;
 	return sqrt(pow(deltaX, 2) + pow(deltaY, 2));
+}
+
+void calculateNewVel(Ball& currentBall, Ball& otherBall){
+    int mass = 1;
+
+    //velocity of current Ball
+    int oldVelXC = currentBall.mVelX;
+    int oldVelYC = currentBall.mVelY;
+
+    //velocity of other ball
+    int oldVelXO = otherBall.mVelX;
+    int oldVelYO = otherBall.mVelY;
+
+    int newVelXC = (2*mass*oldVelXO)/(2*mass);
+    int newVelYC = (2*mass*oldVelYO)/(2*mass);
+    int newVelXO = (2*mass*oldVelXC)/(2*mass);
+    int newVelYO = (2*mass*oldVelYC)/(2*mass);
+
+    currentBall.mVelX = newVelXC;
+    currentBall.mVelY = newVelYC;
+    otherBall.mVelX = newVelXO;
+    otherBall.mVelY = newVelYO;
+}
+
+void swapVel(int *a, int *b){
+    int temp = *a;
+    *a = *b;
+    *b =temp;
 }
 
 void close(){
@@ -617,7 +652,7 @@ void close(){
 	TTF_CloseFont( gFont );
 	gFont = NULL;
 
-	//Destroy window	
+	//Destroy window
 	SDL_DestroyRenderer(gRenderer);
 	SDL_DestroyWindow(gWindow);
 	gWindow = NULL;
@@ -627,5 +662,4 @@ void close(){
 	IMG_Quit();
 	SDL_Quit();
 }
-
 
