@@ -25,6 +25,7 @@ const int SCREEN_HEIGHT = 500;
 struct Circle{
 	int x, y;
 	int r;
+	double cVelx, cVely;
 };
 
 //Texture wrapper class
@@ -85,21 +86,27 @@ class Ball{
 		//Initializes the variables
 		Ball(int x, int y, int velX, int velY);
 
+        int getVelX();
+        int getVelY();
+
 		//Moves the ball and checks collision
 		void move(int currentBall);
 
 		//Shows the ball on the screen
 		void render();
 
+
 		//Gets collision circle
 		Circle& getCollider();
+
+		//The velocity of the ball
+		int mVelX, mVelY;
 
     private:
 		//The X and Y offsets of the ball
 		int mPosX, mPosY;
 
-		//The velocity of the ball
-		int mVelX, mVelY;
+
 
 		//Ball's collision circle
 		Circle mCollider;
@@ -156,6 +163,8 @@ bool checkCollision(Circle& a, Circle& b);
 
 //Calculates distance squared between two points
 double distanceSquared(int x1, int y1, int x2, int y2);
+
+void calculateNewVel(Ball curBall, Ball otherBall);
 
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
@@ -346,25 +355,55 @@ void Ball::move(int currentBall){
 			shiftColliders();
 	    }
 	    //If the ball collided or went too far to the left or right and it is not the current ball
-	    if( (i != currentBall) && ((mPosY < 0) || (mPosY + BALL_HEIGHT > SCREEN_HEIGHT) /*|| (checkCollision(mCollider, gColliders[i]))*/)){
+	    if( (i != currentBall) && ((mPosY < 0) || (mPosY + BALL_HEIGHT > SCREEN_HEIGHT))){
 	        //Reverse y direction
 			mVelY = -1*mVelY;
 			shiftColliders();
 	    }
 	    if((i != currentBall)&&(checkCollision(mCollider, gColliders[i]))){
-            mVelX = -1*mVelX;
-            mVelY = -1*mVelY;
+            //calculate new velocities
+            calculateNewVel(gBalls[currentBall],gBalls[i]);
 			shiftColliders();
 	    }
-
-
-	    gColliders.at(currentBall) = gBalls[currentBall].getCollider();
+        gColliders.at(currentBall) = gBalls[currentBall].getCollider();
 	}
 }
 
+void calculateNewVel(Ball curBall, Ball otherBall){
+    int mass = 1;
+    //velocity of current Ball
+    int oldVelXC = curBall.mVelX;
+    int oldVelYC = curBall.mVelY;
+    //velocity of other ball
+    int oldVelXO = otherBall.mVelX;
+    int oldVelYO = otherBall.mVelY;
+
+    int newVelXC = (2*mass*oldVelXO)/(2*mass);
+    int newVelYC = (2*mass*oldVelYO)/(2*mass);
+    int newVelXO = (2*mass*oldVelXC)/(2*mass);
+    int newVelYO = (2*mass*oldVelYC)/(2*mass);
+
+    curBall.mVelX = newVelXC;
+    curBall.mVelY = newVelYC;
+    otherBall.mVelX = newVelXO;
+    otherBall.mVelY = newVelYO;
+}
+void swapVel(int *a, int *b){
+    int temp = *a;
+    *a = *b;
+    *b =temp;
+}
+
+//make a return velocity function for
 void Ball::render(){
     //Show the ball
 	gBallTexture.render(mPosX, mPosY);
+}
+int Ball::getVelX(){
+    return mVelX;
+}
+int Ball::getVelY(){
+    return mVelY;
 }
 
 Circle& Ball::getCollider(){
