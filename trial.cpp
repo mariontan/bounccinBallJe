@@ -12,8 +12,8 @@
 
 using namespace std; 
 //Screen dimension constants
-const int SCREEN_WIDTH = 500;
-const int SCREEN_HEIGHT = 500;
+const int SCREEN_WIDTH = 200;
+const int SCREEN_HEIGHT = 200;
 
 //A circle stucture
 struct Circle{
@@ -163,97 +163,14 @@ TTF_Font* gFont = NULL;
 //Scene textures
 LTexture gFPSTextTexture;
 
+//normal
+vector<double> normalVector;
+double magnitudeNormalVector;
+vector<double> unitNormalVector;
+
 //Vectors for the balls and their colliders
 vector<Ball> gBalls;
 vector<Circle> gColliders;
-
-int main( int argc, char* args[] ){
-	//Start up SDL and create window
-	if(!init()){
-		printf( "Failed to initialize!\n" );
-	}
-	else{
-		//Load media
-		if(!loadMedia()){
-			printf( "Failed to load media!\n" );
-		}
-		else{	
-			//Main loop flag
-			bool quit = false;
-
-			//Event handler
-			SDL_Event e;
-
-			//Set text color as black
-			SDL_Color textColor = {0, 0, 0, 255};
-
-			//In memory text stream
-			stringstream timeText;
-
-			//Start global timer
-			gTimer.start();
-
-			//The frames per second timer
-			LTimer fpsTimer;
-
-			//Start counting frames per second
-			int countedFrames = 0;
-			fpsTimer.start();
-
-			//Count of balls in screen
-			int nBalls = 30;
-
-			//loadBalls in vector gBalls
-			loadBalls(nBalls);
-
-			//While application is running
-			while(!quit){
-				//Handle events on queue
-				while(SDL_PollEvent(&e) != 0){
-					//User requests quit
-					if(e.type == SDL_QUIT){
-						quit = true;
-					}
-				}
-
-				//Clear screen
-				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
-				SDL_RenderClear(gRenderer);
-				
-				//Calculate and correct fps
-				float avgFPS = countedFrames/(fpsTimer.getTicks()/1000.f);
-				if(avgFPS > 2000000){
-					avgFPS = 0;
-				}
-
-				//Set text to be rendered
-				timeText.str("");
-				timeText << "Average Frames Per Second " << avgFPS; 
-
-				//Render text
-				if(!gFPSTextTexture.loadFromRenderedText(timeText.str().c_str(), textColor)){
-					printf("Unable to render FPS texture!\n");
-				}
-				gFPSTextTexture.render((SCREEN_WIDTH-gFPSTextTexture.getWidth())/2, 0);
-
-				//Move and render the balls inside the vector gBalls
-				for(int i = 0; i < nBalls; i++){
-					gBalls.at(i).move(i);
-					gBalls.at(i).render();
-				}
-
-				//Update screen
-				SDL_RenderPresent(gRenderer);
-				++countedFrames;
-
-			}
-		}
-	}
-
-	//Free resources and close SDL
-	close();
-	return 0;
-}
 
 LTexture::LTexture(){
 	//Initialize
@@ -416,13 +333,13 @@ void Ball::move(int currentBall){
     //for every collider in gCollider
     for(int i = 0; i < gColliders.size(); i++){
 		//If the ball collided or went too far to the left or right and it is not the current ball
-	    if( (i != currentBall) &&  ((mPosX-mCollider.r < 0) || (mPosX + mCollider.r > SCREEN_WIDTH) || (checkCollision(mCollider, gColliders[i])))){
+	    if( (i != currentBall) &&  ((mPosX < 0) || (mPosX + BALL_WIDTH > SCREEN_WIDTH) || (checkCollision(mCollider, gColliders[i])))){
 	        //Reverse x direction
 	        mVelX = -1*mVelX;
 			shiftColliders();
 	    }
 	    //If the ball collided or went too far to the left or right and it is not the current ball
-	    if( (i != currentBall) && ((mPosY-mCollider.r < 0) || (mPosY + mCollider.r > SCREEN_HEIGHT) || (checkCollision(mCollider, gColliders[i])))){
+	    if( (i != currentBall) && ((mPosY < 0) || (mPosY + BALL_HEIGHT > SCREEN_HEIGHT) || (checkCollision(mCollider, gColliders[i])))){
 	        //Reverse y direction
 			mVelY = -1*mVelY;
 			shiftColliders();
@@ -433,7 +350,7 @@ void Ball::move(int currentBall){
 
 void Ball::render(){
     //Show the ball
-	gBallTexture.render(mPosX-mCollider.r, mPosY-mCollider.r);
+	gBallTexture.render(mPosX, mPosY);
 }
 
 Circle& Ball::getCollider(){
@@ -568,46 +485,6 @@ bool loadMedia(){
 	return success;
 }
 
-void loadBalls(int n){
-	int columnCount = 1;
-	int rowCount = 1;
-	int offset = SCREEN_WIDTH/10;
-	int posY = Ball::BALL_WIDTH;
-	int posX = Ball::BALL_HEIGHT;
-
-	for(int i = 0; i < n; i++){
-		posX = columnCount*(Ball::BALL_WIDTH + offset);
-		columnCount++;
-		if(posX > (SCREEN_WIDTH - offset)){
-			rowCount++;
-			posY = rowCount*(Ball::BALL_HEIGHT+offset);
-			columnCount = 1;
-		}
-		Ball ball(posX, posY, 1 + rand()%5-4, 1 + rand()%5-3);
-		gBalls.push_back(ball);
-		gColliders.push_back(ball.getCollider());		
-	}
-}
-
-bool checkCollision(Circle& a, Circle& b){
-	//Calculate total radii/diameter
-    int totalRadii = a.r + b.r;
-
-    //If the ditsance between the centers of the circles is less than the sum of their radii
-    if(distance(a.x, a.y, b.x, b.y) < (totalRadii)){
-        //The circles have collided
-        return true;
-    }
-    //If not
-    return false;
-}
-
-double distance(int x1, int y1, int x2, int y2){
-	int deltaX = x2 - x1;
-	int deltaY = y2 - y1;
-	return sqrt(pow(deltaX, 2) + pow(deltaY, 2));
-}
-
 void close(){
 	//Free loaded images
 	gBallTexture.free();
@@ -628,4 +505,132 @@ void close(){
 	SDL_Quit();
 }
 
+void loadBalls(int n){
+	for(int i = 0; i < n; i++){
+		Ball ball_moving(rand()%(SCREEN_WIDTH-Ball::BALL_WIDTH), rand()%(SCREEN_HEIGHT-Ball::BALL_HEIGHT), rand()%5-4, rand()%5-3);
+		gBalls.push_back(ball_moving);
+		gColliders.push_back(ball_moving.getCollider());
+	}
+}
 
+bool checkCollision(Circle& a, Circle& b){
+	//Calculate total radii/diameter
+    int totalRadii = a.r + b.r;
+
+    normalVector.push_back(b.x - a.x);
+	normalVector.push_back(b.y - a.y);
+	magnitudeNormalVector = sqrt(pow(normalVector[0], 2) + pow(normalVector[1], 2));
+	
+
+    //If the distance between the centers of the circles is less than the sum of their radii
+    if(magnitudeNormalVector < (totalRadii)){
+        //The circles have collided
+        return true;
+    }
+    //If not
+    return false;
+    normalVector.empty();
+}
+
+double distance(int x1, int y1, int x2, int y2){
+	int deltaX = x2 - x1;
+	int deltaY = y2 - y1;
+	return sqrt(pow(deltaX, 2) + pow(deltaY, 2));
+}
+
+/*void setVectors(Circle& a, Circle& b){
+	
+	for(int i = 0; i < 2; i++){
+		unitNormalVector.at[i] = normalVector.at[i]/magnitudeNormalVector;
+	}
+}*/
+
+int main( int argc, char* args[] ){
+	//Start up SDL and create window
+	if(!init()){
+		printf( "Failed to initialize!\n" );
+	}
+	else{
+		//Load media
+		if(!loadMedia()){
+			printf( "Failed to load media!\n" );
+		}
+		else{	
+			//Main loop flag
+			bool quit = false;
+
+			//Event handler
+			SDL_Event e;
+
+			//Set text color as black
+			SDL_Color textColor = {0, 0, 0, 255};
+
+			//In memory text stream
+			stringstream timeText;
+
+			//Start global timer
+			gTimer.start();
+
+			//The frames per second timer
+			LTimer fpsTimer;
+
+			//Start counting frames per second
+			int countedFrames = 0;
+			fpsTimer.start();
+
+			//Count of balls in screen
+			int nBalls = 5;
+
+			//loadBalls in vector gBalls
+			loadBalls(nBalls);
+
+			//While application is running
+			while(!quit){
+				//Handle events on queue
+				while(SDL_PollEvent(&e) != 0){
+					//User requests quit
+					if(e.type == SDL_QUIT){
+						quit = true;
+					}
+				}
+
+				//Clear screen
+				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
+				SDL_RenderClear(gRenderer);
+				
+				//Calculate and correct fps
+				float avgFPS = countedFrames/(fpsTimer.getTicks()/1000.f);
+				if(avgFPS > 2000000){
+					avgFPS = 0;
+				}
+
+				//Set text to be rendered
+				timeText.str("");
+				timeText << "Average Frames Per Second " << avgFPS; 
+
+				//Render text
+				if(!gFPSTextTexture.loadFromRenderedText(timeText.str().c_str(), textColor)){
+					printf("Unable to render FPS texture!\n");
+				}
+				gFPSTextTexture.render((SCREEN_WIDTH-gFPSTextTexture.getWidth())/2, 0);
+
+				//Move and render the balls inside the vector gBalls
+				for(int i = 0; i < nBalls; i++){
+					//bug: Needs to include all the balls inside the gBalls for the move method
+					gBalls.at(i).move(i);
+					gBalls.at(i).render();
+				}
+
+				//Update screen
+				SDL_RenderPresent(gRenderer);
+				++countedFrames;
+
+			}
+		}
+	}
+
+	//Free resources and close SDL
+	close();
+
+	return 0;
+}
