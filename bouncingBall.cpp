@@ -150,10 +150,13 @@ bool checkCollision(Circle& a, Circle& b);
 //Calculates distance squared between two points
 double distance(int x1, int y1, int x2, int y2);
 
-void calculateNewVel(Ball& currentBall, Ball& otherBall);
-
+//responsible for transfer of velocities from each other
 void calculateNewVel(Ball& curBall, Ball& otherBall);
 
+//pushes the balls away if animated on top of each otehr
+void nudgeBallLoop();
+
+void nudgeBallMath(Circle& curBall, Circle& otherBall);
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
 
@@ -210,10 +213,12 @@ int main( int argc, char* args[] ){
 			fpsTimer.start();
 
 			//Count of balls in screen
-			int nBalls = 10;
+			int nBalls = 50;
 
 			//loadBalls in vector gBalls
 			loadBalls(nBalls);
+
+			nudgeBallLoop();
 
 			//While application is running
 			while(!quit){
@@ -244,7 +249,7 @@ int main( int argc, char* args[] ){
 					printf("Unable to render FPS texture!\n");
 				}
 				gFPSTextTexture.render((SCREEN_WIDTH-gFPSTextTexture.getWidth())/2, 0);
-
+                nudgeBallLoop();
 				//Move and render the balls inside the vector gBalls
 				for(int i = 0; i < nBalls; i++){
 					//bug: Needs to include all the balls inside the gBalls for the move method
@@ -434,33 +439,12 @@ void Ball::move(int currentBall){
 			shiftColliders();
 	    }
 
-	    if((i != currentBall)&&(checkCollision(mCollider, gColliders[i]))){
-            //calculate new velocities
+        if((i != currentBall)&&(checkCollision(mCollider, gColliders[i]))){
             calculateNewVel(gBalls[currentBall],gBalls[i]);
-			shiftColliders();
-	    }
+            shiftColliders();
+        }
         gColliders.at(currentBall) = gBalls[currentBall].getCollider();
 	}
-}
-
-void calculateNewVel(Ball& curBall, Ball& otherBall){
-    int mass = 1;
-    //velocity of current Ball
-    int oldVelXC = curBall.mVelX;
-    int oldVelYC = curBall.mVelY;
-    //velocity of other ball
-    int oldVelXO = otherBall.mVelX;
-    int oldVelYO = otherBall.mVelY;
-
-    int newVelXC = (2*mass*oldVelXO)/(2*mass);
-    int newVelYC = (2*mass*oldVelYO)/(2*mass);
-    int newVelXO = (2*mass*oldVelXC)/(2*mass);
-    int newVelYO = (2*mass*oldVelYC)/(2*mass);
-
-    curBall.mVelX = newVelXC;
-    curBall.mVelY = newVelYC;
-    otherBall.mVelX = newVelXO;
-    otherBall.mVelY = newVelYO;
 }
 
 //make a return velocity function for
@@ -485,6 +469,94 @@ void Ball::shiftColliders(){
 	mCollider.y = mPosY;
 }
 
+//bug: Improve on the flexibility of this
+
+void loadBalls(int n){
+	//Table-like layout of initial positions of the balls
+	int columnCount = 1;
+	int rowCount = 1;
+	//Offset for the left and right 'walls'
+	int offset = SCREEN_WIDTH/10;
+	int posY = Ball::BALL_WIDTH;
+	int posX = Ball::BALL_HEIGHT;
+
+	for(int i = 0; i < n; i++){
+		posX = columnCount*(Ball::BALL_WIDTH + offset);
+		columnCount++;
+		if(posX > (SCREEN_WIDTH - offset)){
+			rowCount++;
+			posY = rowCount*(Ball::BALL_HEIGHT + offset);
+			columnCount = 1;
+		}
+		Ball ball(posX-50, posY, 4 + rand()%5-4, 4 + rand()%5-3);
+		gBalls.push_back(ball);
+		gColliders.push_back(ball.getCollider());
+	}
+}
+
+bool checkCollision(Circle& a, Circle& b){
+	//Calculate total radius squared
+    int totalRadii = a.r + b.r;
+
+    //If the ditsance between the centers of the circles is less than the sum of their radii
+    if(distance(a.x, a.y, b.x, b.y) < (totalRadii)){
+        //The circles have collided
+        return true;
+    }
+    return false;
+}
+
+double distance(int x1, int y1, int x2, int y2){
+	int deltaX = x2 - x1;
+	int deltaY = y2 - y1;
+	return sqrt(pow(deltaX, 2) + pow(deltaY, 2));
+}
+
+void calculateNewVel(Ball& curBall, Ball& otherBall){
+    int mass = 1;
+    //velocity of current Ball
+    int oldVelXC = curBall.mVelX;
+    int oldVelYC = curBall.mVelY;
+    //velocity of other ball
+    int oldVelXO = otherBall.mVelX;
+    int oldVelYO = otherBall.mVelY;
+
+    int newVelXC = (2*mass*oldVelXO)/(2*mass);
+    int newVelYC = (2*mass*oldVelYO)/(2*mass);
+    int newVelXO = (2*mass*oldVelXC)/(2*mass);
+    int newVelYO = (2*mass*oldVelYC)/(2*mass);
+
+    curBall.mVelX = newVelXC;
+    curBall.mVelY = newVelYC;
+    otherBall.mVelX = newVelXO;
+    otherBall.mVelY = newVelYO;
+}
+
+void nudgeBallMath(Circle& curBall, Circle& otherBall){
+    //distance to be moved
+    double dist = distance(curBall.x,curBall.y,otherBall.x,otherBall.y);
+    double x =((2*curBall.r-dist))/2;
+    double newXposC = ((curBall.x-otherBall.x)/dist)*x;
+    double newYposC = ((curBall.y-otherBall.y)/dist)*x;
+    double newXposO = ((otherBall.x-curBall.x)/dist)*x;
+    double newYposO = ((otherBall.y-curBall.x)/dist)*x;
+
+    curBall.x = newXposC;
+    curBall.y = newYposC;
+    otherBall.x = newXposO;
+    otherBall.y = newYposO;
+
+}
+void nudgeBallLoop(){
+    for(int i = 0; i<gColliders.size();i++){
+        int currentBall = i;
+        for(int j = 0; j<gColliders.size();j++){
+            if((j != currentBall)&&(checkCollision(gColliders[currentBall], gColliders[j]))){
+                nudgeBallMath(gColliders[currentBall],gColliders[j]);
+            }
+        }
+    }
+}
 LTimer::LTimer(){
     //Initialize the variables
     mStartTicks = 0;
@@ -628,45 +700,3 @@ void close(){
 }
 
 
-//bug: Improve on the flexibility of this
-
-void loadBalls(int n){
-	//Table-like layout of initial positions of the balls
-	int columnCount = 1;
-	int rowCount = 1;
-	//Offset for the left and right 'walls'
-	int offset = SCREEN_WIDTH/10;
-	int posY = Ball::BALL_WIDTH;
-	int posX = Ball::BALL_HEIGHT;
-
-	for(int i = 0; i < n; i++){
-		posX = columnCount*(Ball::BALL_WIDTH + offset);
-		columnCount++;
-		if(posX > (SCREEN_WIDTH - offset)){
-			rowCount++;
-			posY = rowCount*(Ball::BALL_HEIGHT + offset);
-			columnCount = 1;
-		}
-		Ball ball(posX, posY, 4 + rand()%5-4, 4 + rand()%5-3);
-		gBalls.push_back(ball);
-		gColliders.push_back(ball.getCollider());
-	}
-}
-
-bool checkCollision(Circle& a, Circle& b){
-	//Calculate total radius squared
-    int totalRadii = a.r + b.r;
-
-    //If the ditsance between the centers of the circles is less than the sum of their radii
-    if(distance(a.x, a.y, b.x, b.y) < (totalRadii)){
-        //The circles have collided
-        return true;
-    }
-    return false;
-}
-
-double distance(int x1, int y1, int x2, int y2){
-	int deltaX = x2 - x1;
-	int deltaY = y2 - y1;
-	return sqrt(pow(deltaX, 2) + pow(deltaY, 2));
-}
